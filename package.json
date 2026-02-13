@@ -11,6 +11,14 @@
     "README.md",
     "LICENSE"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlexMA2/swaggular.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AlexMA2/swaggular/issues"
+  },
+  "homepage": "https://github.com/AlexMA2/swaggular#readme",
   "scripts": {
     "start": "node dist/index.js",
     "serve": "npm run build && node dist/index.js",
