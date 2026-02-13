@@ -6,11 +6,14 @@ import { generateServiceFiles, generateServices } from './renderers/generate-ser
 import { getParseArgs } from './cli/args';
 import { toVariables } from './cli/variables';
 import { createFileFromFileContents } from './utils/create-file';
-
 export async function main() {
   try {
     const parsed = getParseArgs(process.argv.slice(2));
     const variables = toVariables(parsed);
+
+    console.log(
+      'Generating interfaces and services using Swaggular@' + process.env.npm_package_version,
+    );
 
     SwaggerParser.parse(variables.input, {
       mode: variables.groupingMode,
