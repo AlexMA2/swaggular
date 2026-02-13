@@ -1,5 +1,10 @@
 import { InterfaceData } from '../../types/interface-data';
 
+/**
+ * Modify this to add your generic types.
+ * This will be used by the generic types function
+ * to determine if a new interface is a generic type.
+ */
 export const genericTypesData: InterfaceData[] = [
   {
     name: 'PagedResultDto',

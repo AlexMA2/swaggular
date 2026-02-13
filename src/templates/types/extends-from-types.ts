@@ -1,5 +1,11 @@
 import { InterfaceData } from '../../types/interface-data';
 
+/**
+ * Modify this to add your extends from types.
+ * This will be used by the extends from types function
+ * to determine if a new interface extends from one of the extends from types.
+ */
+
 export const extendsFromTypes: InterfaceData[] = [
   {
     name: 'PagedRequestDto',

@@ -1,5 +1,8 @@
 import { httpParamsHandlerImport } from './http-params-handler';
 
+/**
+ * Modify this interface according to your needs and your template
+ */
 export interface AngularServiceTemplate {
   name: string;
   baseUrl: string;
