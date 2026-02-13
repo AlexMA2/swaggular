@@ -299,6 +299,7 @@ export class PathGrouper {
 
     for (let i = 0; i < firstPath.length; i++) {
       const segment = firstPath[i];
+      if (isVariable(segment)) break;
       if (pathSegments.every((ps) => ps[i] === segment)) {
         common.push(segment);
       } else {

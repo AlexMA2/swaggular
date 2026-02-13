@@ -7,12 +7,7 @@ import { serviceState } from '../core/state/service-state';
 import { swaggerState } from '../core/state/swagger-state';
 import { angularTemplate, AngularServiceTemplate } from '../templates/services/angular-template';
 import { switchTypeJson } from '../utils/build-types';
-import {
-  getExtraSegments,
-  isVariable,
-  createBaseUrl,
-  removeVariablesFromPath,
-} from '../utils/path-utils';
+import { getExtraSegments, isVariable } from '../utils/path-utils';
 import { kebabToPascalCase, lowerFirst, toKebabCase, upFirst } from '../utils/string-utils';
 import { isNativeType, isReference } from '../utils/type-guard';
 import { generateServiceComments } from './generate-comments';
@@ -29,23 +24,19 @@ export function generateServices(): void {
   if (!groupedPaths || !paths) return;
 
   for (const [key, value] of Object.entries(groupedPaths)) {
-    const serviceMethods = buildMethods(value);
+    const serviceMethods = buildMethods(value, paths);
     const imports = new Set<string>();
 
     serviceMethods.forEach((method) => {
-      if (!isNativeType(method.responseType)) {
-        imports.add(method.responseType);
-      }
+      addTypeToImports(method.responseType, imports);
       method.parameters.forEach((param) => {
-        if (!isNativeType(param.type)) {
-          imports.add(param.type);
-        }
+        addTypeToImports(param.type, imports);
       });
     });
 
     const serviceData: ServiceData = {
       name: key,
-      imports: Array.from(imports),
+      imports: Array.from(imports).sort(),
       baseUrl: value.baseUrl,
       methods: serviceMethods,
     };
@@ -53,6 +44,22 @@ export function generateServices(): void {
   }
 
   serviceState.addServices(servicesData);
+}
+
+function addTypeToImports(type: string, imports: Set<string>) {
+  if (!type || isNativeType(type)) return;
+
+  const baseType = type.replace('[]', '');
+  if (baseType.includes('<')) {
+    const parts = baseType.split(/[<>]/);
+    parts.forEach((p) => {
+      if (p && !isNativeType(p)) {
+        imports.add(p);
+      }
+    });
+  } else {
+    imports.add(baseType);
+  }
 }
 
 export function generateServiceFiles(locations?: Record<string, string[]>): FileContent[] {
@@ -89,27 +96,28 @@ export function generateServiceFiles(locations?: Record<string, string[]>): File
   return filesContent;
 }
 
-export function buildMethods(groupedPath: GroupedPath): ServiceDataMethod[] {
+export function buildMethods(
+  groupedPath: GroupedPath,
+  pathData: OpenAPIV3.PathsObject,
+): ServiceDataMethod[] {
   const methods: ServiceDataMethod[] = [];
-  const pathData = swaggerState.getPaths();
   const usedNames: string[] = [];
 
   for (const path of groupedPath.paths) {
     if (!pathData || !pathData[path]) continue;
-    const pathItem = pathItemToMethods(pathData[path]!);
+    const pathItem = pathData[path]!;
+    const operations = pathItemToMethods(pathItem);
 
-    for (const [method, operation] of Object.entries(pathItem)) {
+    for (const [method, operation] of Object.entries(operations)) {
       const name = buildMethodName(method, path, groupedPath, usedNames);
       usedNames.push(name);
 
-      const parameters = buildParameters(operation.parameters ?? []);
+      const parameters = buildParameters(operation, pathItem.parameters);
       const responseType = buildResponseType(operation.responses);
 
       methods.push({
         name,
-        path: removeVariablesFromPath(
-          getExtraSegments(path, createBaseUrl(groupedPath.baseSegments)).join(''),
-        ),
+        path: getExtraSegments(path, groupedPath.baseUrl).join('/'),
         method: method as AngularRequestType,
         parameters,
         responseType,
@@ -147,11 +155,11 @@ function buildMethodName(
   };
 
   const prefix = dict[method];
-  const extra = kebabToPascalCase(
-    removeVariablesFromPath(
-      getExtraSegments(path, createBaseUrl(groupedPath.baseSegments)).join(''),
-    ),
-  );
+  const extraSegments = getExtraSegments(path, groupedPath.baseUrl);
+
+  // Create name segments, removing variables from name
+  const nameSegments = extraSegments.map((s) => s.replace(/[{}]/g, ''));
+  const extra = kebabToPascalCase(nameSegments.join(''));
 
   let name = prefix + upFirst(extra);
   if (usedNames.includes(name)) {
@@ -161,11 +169,13 @@ function buildMethodName(
 }
 
 function buildParameters(
-  parameters: (OpenAPIV3.ReferenceObject | OpenAPIV3.ParameterObject)[],
+  operation: OpenAPIV3.OperationObject,
+  pathParameters?: (OpenAPIV3.ReferenceObject | OpenAPIV3.ParameterObject)[],
 ): ServiceDataParameter[] {
   const results: ServiceDataParameter[] = [];
+  const allParams = [...(pathParameters ?? []), ...(operation.parameters ?? [])];
 
-  for (const param of parameters) {
+  for (const param of allParams) {
     if (isReference(param)) {
       const ref = param.$ref.split('/').pop()!;
       results.push({
@@ -185,14 +195,33 @@ function buildParameters(
     });
   }
 
-  // Check for body (simplified)
-  // In a real implementation we would look at requestBody
+  // Handle requestBody in V3
+  if (operation.requestBody) {
+    let bodyType = 'any';
+    if (!isReference(operation.requestBody)) {
+      const content =
+        operation.requestBody.content?.['application/json'] ||
+        operation.requestBody.content?.['multipart/form-data'];
+      if (content && content.schema) {
+        bodyType = switchTypeJson(content.schema);
+      }
+    } else {
+      bodyType = operation.requestBody.$ref.split('/').pop()!;
+    }
+
+    results.push({
+      name: bodyType === 'FormData' ? 'formData' : 'body',
+      in: 'body',
+      required: true,
+      type: bodyType,
+    });
+  }
 
   return results;
 }
 
 function buildResponseType(responses: OpenAPIV3.ResponsesObject): string {
-  const success = responses['200'] || responses['201'] || responses['default'];
+  const success = responses['200'] || responses['201'] || responses['204'] || responses['default'];
   if (!success) return 'any';
   if (isReference(success)) return success.$ref.split('/').pop()!;
 
@@ -206,10 +235,16 @@ function buildMethodTemplate(method: ServiceDataMethod): string {
   const params = method.parameters
     .map((p) => `${p.name}${p.required ? '' : '?'}: ${p.type}`)
     .join(', ');
-  const path = method.path
+
+  let pathStr = method.path
     .split('/')
+    .filter((s) => s !== '')
     .map((s) => (isVariable(s) ? `\${${s.replace(/[{}]/g, '')}}` : s))
     .join('/');
+
+  if (pathStr) {
+    pathStr = '/' + pathStr;
+  }
 
   const queryParams = method.parameters.filter((p) => p.in === 'query');
   const bodyParam = method.parameters.find((p) => p.in === 'body');
@@ -219,10 +254,15 @@ function buildMethodTemplate(method: ServiceDataMethod): string {
     options = `, { params: HttpHelper.toHttpParams({ ${queryParams.map((p) => p.name).join(', ')} }) }`;
   }
 
-  const httpCall = `this.http.${method.method}<${method.responseType}>(this.baseUrl + \`${path}\`${bodyParam ? `, ${bodyParam.name}` : ['post', 'put', 'patch'].includes(method.method) ? ', {}' : ''}${options})`;
+  const url = `\`\${this.baseUrl}${pathStr}\``;
+  const methodCall = bodyParam
+    ? `this.http.${method.method}<${method.responseType}>(${url}, ${bodyParam.name}${options})`
+    : ['post', 'put', 'patch'].includes(method.method)
+      ? `this.http.${method.method}<${method.responseType}>(${url}, {}${options})`
+      : `this.http.${method.method}<${method.responseType}>(${url}${options})`;
 
   return `${method.comments}
   ${method.name}(${params}): Observable<${method.responseType}> {
-    return ${httpCall};
+    return ${methodCall};
   }`;
 }

@@ -3,52 +3,60 @@ export function isVariable(segment: string): boolean {
 }
 
 export function getExtraSegments(fullPath: string, baseUrl: string): string[] {
-  if (!fullPath.startsWith('api') && !fullPath.startsWith('/api')) {
-    fullPath = '/api/' + fullPath;
+  const p1 = fullPath.split('/').filter((s) => s !== '');
+  const p2 = baseUrl.split('/').filter((s) => s !== '');
+
+  // Find where baseUrl ends in fullPath
+  let i = 0;
+  while (i < p1.length && i < p2.length && p1[i].toLowerCase() === p2[i].toLowerCase()) {
+    i++;
   }
 
-  const path = fullPath.replace(baseUrl, '');
-  return path.split('/').filter((p) => p !== '');
+  return p1.slice(i);
 }
 
 export function removeVariablesFromPath(path: string): string {
-  return path.replace(/{.+}/g, '');
+  return path.replace(/\{.+?\}/g, '');
 }
 
 export function createBaseUrl(baseSegments: string[]): string {
-  if (!baseSegments || baseSegments.length === 0) return 'api';
-  if (baseSegments[0] === 'api') return baseSegments.join('/');
-  return 'api/' + baseSegments.join('/');
+  const filtered = baseSegments.filter((s) => s !== '');
+  if (filtered.length === 0) return '/api';
+  if (filtered[0].toLowerCase() === 'api') return '/' + filtered.join('/');
+  return '/api/' + filtered.join('/');
 }
 
 export function findCommonBaseUrl(paths: string[]): string {
   if (!paths || paths.length === 0) return '';
-  if (paths.length === 1) return pathWithoutVariables(paths[0].split('/'));
 
-  const splittedPaths = paths.map((p) => p.split('/'));
+  const splittedPaths = paths.map((p) => p.split('/').filter((s) => s !== ''));
+  if (splittedPaths.length === 1)
+    return createBaseUrl(pathSegmentsWithoutVariables(splittedPaths[0]));
+
   const firstPath = splittedPaths[0];
   const commonSegments: string[] = [];
 
   for (let i = 0; i < firstPath.length; i++) {
     const segment = firstPath[i];
     const isCommon = splittedPaths.every((p) => p[i] === segment);
+    const isVariableSegment = isVariable(segment);
 
-    if (isCommon) {
+    if (isCommon && !isVariableSegment) {
       commonSegments.push(segment);
     } else {
       break;
     }
   }
 
-  return pathWithoutVariables(commonSegments);
+  return createBaseUrl(commonSegments);
 }
 
-export function pathWithoutVariables(segments: string[]): string {
+function pathSegmentsWithoutVariables(segments: string[]): string[] {
   const firstVariableIndex = segments.findIndex((segment) => isVariable(segment));
   if (firstVariableIndex !== -1) {
-    return segments.slice(0, firstVariableIndex).join('/');
+    return segments.slice(0, firstVariableIndex);
   }
-  return segments.join('/');
+  return segments;
 }
 
 export function standarizedPath(path: string): string {

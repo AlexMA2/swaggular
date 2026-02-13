@@ -35,10 +35,11 @@ export function generateServiceComments(
   responseType?: string,
   parameters?: ServiceDataParameter[],
 ): string {
-  const summarySplited = [];
+  const summarySplited: string[] = [];
+  const summaryWords = summary.split(' ');
 
-  for (let i = 0; i < summary.length; i += 100) {
-    summarySplited.push(summary.slice(i, i + 100));
+  for (let i = 0; i < summaryWords.length; i += 10) {
+    summarySplited.push(summaryWords.slice(i, i + 10).join(' '));
   }
 
   const comments: string[] = summarySplited;
@@ -51,5 +52,5 @@ export function generateServiceComments(
     comments.push(`@returns Observable<${responseType}>`);
   }
 
-  return `\t/**\n${comments.map((c) => `\t* ${c}\n`).join('')}\n */`;
+  return `\t/**\n${comments.map((c) => `\t* ${c}\n`).join('')} */`;
 }

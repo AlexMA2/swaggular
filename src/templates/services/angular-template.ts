@@ -18,7 +18,7 @@ export const angularTemplate = (params: AngularServiceTemplate): string => {
 import { HttpClient } from "@angular/common/http";
 import { Observable } from "rxjs";
 import { inject, Injectable } from '@angular/core';
-import { ${params.imports} } from '../../models';
+import { ${params.imports} } from '../models';
 ${params.hasHttpParamsHandler ? httpParamsHandlerImport() : ''}
 
 @Injectable({
@@ -26,7 +26,7 @@ ${params.hasHttpParamsHandler ? httpParamsHandlerImport() : ''}
 })
 export class ${params.name}Service {    
 
-  private readonly baseUrl = "${params.baseUrl}";
+  private readonly baseUrl = \`${params.baseUrl}\`;
   private readonly http = inject(HttpClient);
 
 ${params.methods}

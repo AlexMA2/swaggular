@@ -13,7 +13,7 @@ export function toVariables(parsed: ParsedArgs): ArgsVariables {
   }
 
   return {
-    input: parsed.args.input as string,
+    input: (parsed.args.input as string) || 'swagger.json',
     output: (parsed.args.output as string) || 'results',
     noGenerate: (parsed.args.noGenerate as boolean) || false,
     groupingMode: variables.groupingMode || 'path',
