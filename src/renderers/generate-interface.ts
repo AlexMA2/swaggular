@@ -164,7 +164,11 @@ export function generateComponentsSchemas() {
     const interData: InterfaceData = {
       name: key,
       type: 'interface',
-      imports: properties.filter((p) => !isNativeType(p.type)).map((p) => p.type),
+      imports: properties
+        .filter((p) => !isNativeType(p.type))
+        .map((p) => {
+          return p.type.replaceAll('[]', '');
+        }),
       properties,
     };
     const generic = isGenericType(interData);
@@ -191,7 +195,7 @@ export function generateInterfacesFiles(locations?: Record<string, string[]>): F
   const filesContent: FileContent[] = [];
   for (const [key, value] of Object.entries(interfacesData)) {
     const location = [value.type === 'enum' ? 'enums' : 'dtos', ...(locations?.[key] ?? [])];
-    const content = generateContent(value, location.length);
+    const content = generateContent(value, location.length + 1);
     const extraName = value.type === 'enum' ? 'enum' : 'dto';
     filesContent.push({
       location: location,
@@ -207,10 +211,9 @@ export function generateInterfacesFiles(locations?: Record<string, string[]>): F
 export function generateContent(interfaceData: InterfaceData, deep: number = 0): string {
   const imports = [...interfaceData.imports];
 
+  const path = '../'.repeat(deep);
   const importsTemplate =
-    imports.length > 0
-      ? `import { ${imports.join(', ')} } from "${'../'.repeat(deep)}models";`
-      : '';
+    imports.length > 0 ? `import { ${imports.join(', ')} } from "${path}models";` : '';
 
   if (interfaceData.type === 'interface') {
     const content = `${importsTemplate}\n\nexport interface ${interfaceData.name} ${interfaceData.extendsFrom && interfaceData.extendsFrom.length > 0 ? `extends ${interfaceData.extendsFrom.join(', ')}` : ''} {
