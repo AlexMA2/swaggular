@@ -1,4 +1,4 @@
-# Swagger to Angular Generator
+# Swaggular
 
 A powerful tool to generate Angular services and models from Swagger/OpenAPI specifications.
 
@@ -13,23 +13,38 @@ A powerful tool to generate Angular services and models from Swagger/OpenAPI spe
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
+- Node.js (v18 or higher)
 - npm or yarn
 
 ### Installation
 
+To install the tool globally:
+
 ```bash
-npm install
+npm install -g swaggular
+```
+
+Or run it directly using `npx`:
+
+```bash
+npx swaggular --input=swagger.json
 ```
 
 ### Usage
 
-1. Place your `swagger.json` file in the root directory.
-2. Run the generation script:
+Run the generator by providing the path to your Swagger/OpenAPI file:
 
 ```bash
-npm run serve
+swaggular --input=path/to/your/swagger.json
 ```
+
+#### Options
+
+- `--input`: Path to the swagger.json file (required).
+- `--ignore-segments`: Path segments to ignore when generating service names. (comma separated)
+- `--mode`: Grouping mode. (tags or path) Default: path
+- `--no-generate`: Parse the file but don't generate the output. (For testing purposes)
+- `--output`: Path to the output folder. Default: results
 
 The generated files will be available in the `results` folder.
 

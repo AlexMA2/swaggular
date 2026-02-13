@@ -6,5 +6,7 @@ export type ParsedArgs = {
 export interface ArgsVariables {
   groupingMode: 'tags' | 'path';
   segmentsToIgnore: string[];
-  ignoreVariables: boolean;
+  input: string;
+  output: string;
+  noGenerate: boolean;
 }

@@ -1,4 +1,4 @@
-# Contributing to Swagger to Angular
+# Contributing to Swaggular
 
 First off, thank you for considering contributing to this project! It's people like you that make the open-source community such an amazing place to learn, inspire, and create.
 

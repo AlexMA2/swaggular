@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import fs from 'fs';
 import { SwaggerParser } from './parsers/swagger-parser';
 import { generateInterfaces, generateInterfacesFiles } from './renderers/generate-interface';
@@ -6,15 +7,15 @@ import { getParseArgs } from './cli/args';
 import { toVariables } from './cli/variables';
 import { createFileFromFileContents } from './utils/create-file';
 
-async function main() {
+export async function main() {
   try {
     const parsed = getParseArgs(process.argv.slice(2));
     const variables = toVariables(parsed);
 
-    SwaggerParser.parse(parsed.args.input as string, {
+    SwaggerParser.parse(variables.input, {
       mode: variables.groupingMode,
       segmentsToIgnore: variables.segmentsToIgnore,
-      ignoreVariables: variables.ignoreVariables,
+      ignoreVariables: true,
     });
 
     generateInterfaces();
@@ -23,22 +24,24 @@ async function main() {
     const interfaceFiles = generateInterfacesFiles();
     const serviceFiles = generateServiceFiles();
 
-    if (parsed.args.noGenerate) {
-      console.log('No se generaron archivos');
+    if (variables.noGenerate) {
+      console.log('Files not generated');
       return;
     }
 
-    if (fs.existsSync('results')) {
-      fs.rmSync('results', { recursive: true, force: true });
+    if (fs.existsSync(variables.output)) {
+      fs.rmSync(variables.output, { recursive: true, force: true });
     }
 
-    await createFileFromFileContents('results/models', interfaceFiles);
-    await createFileFromFileContents('results', serviceFiles);
+    await createFileFromFileContents(`${variables.output}/models`, interfaceFiles);
+    await createFileFromFileContents(variables.output, serviceFiles);
 
-    console.log('Archivo creado correctamente');
+    console.log('Files created successfully');
   } catch (err) {
     console.error('Failed to read JSON:', err);
   }
 }
 
-main();
+if (require.main === module) {
+  main();
+}

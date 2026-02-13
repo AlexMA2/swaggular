@@ -4,21 +4,19 @@ export function toVariables(parsed: ParsedArgs): ArgsVariables {
   const variables: Partial<ArgsVariables> = {};
 
   if (parsed.args.mode) {
-    variables.groupingMode = parsed.args.mode as 'tags' | 'path';
+    variables.groupingMode = (parsed.args.mode as 'tags' | 'path') || 'path';
   }
   if (parsed.args.segmentsToIgnore) {
     if (typeof parsed.args.segmentsToIgnore === 'string') {
       variables.segmentsToIgnore = parsed.args.segmentsToIgnore.split(',');
     }
   }
-  if (parsed.args.ignoreVariables) {
-    variables.ignoreVariables =
-      parsed.args.ignoreVariables === 'true' || parsed.args.ignoreVariables === true;
-  }
 
   return {
+    input: parsed.args.input as string,
+    output: (parsed.args.output as string) || 'results',
+    noGenerate: (parsed.args.noGenerate as boolean) || false,
     groupingMode: variables.groupingMode || 'path',
     segmentsToIgnore: variables.segmentsToIgnore || ['api'],
-    ignoreVariables: variables.ignoreVariables || true,
   };
 }
