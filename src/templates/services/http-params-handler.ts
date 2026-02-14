@@ -4,9 +4,7 @@
  * used in your service.
  */
 export function httpParamsHandler(params: any) {
-  return `
-  const params = HttpHelper.toHttpParams(${params} || {})
-`;
+  return `const params = HttpHelper.toHttpParams(${params} || {})`;
 }
 
 /**
