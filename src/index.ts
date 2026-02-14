@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import fs from 'fs';
 import { SwaggerParser } from './parsers/swagger-parser';
 import { generateInterfaces, generateInterfacesFiles } from './renderers/generate-interface';
 import { generateServiceFiles, generateServices } from './renderers/generate-service';
@@ -30,10 +29,6 @@ export async function main() {
     if (variables.noGenerate) {
       console.log('Files not generated');
       return;
-    }
-
-    if (fs.existsSync(variables.output)) {
-      fs.rmSync(variables.output, { recursive: true, force: true });
     }
 
     await createFileFromFileContents(`${variables.output}/models`, interfaceFiles);

@@ -63,6 +63,12 @@ The generated files will be available in the `results` folder.
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
 
+### 🚀 Roadmap
+
+- [ ] Add TSDoc comments
+- [ ] Add function to identify common properties and generate interfaces
+- [ ] Add function to generate interfaces and services for just one path
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
