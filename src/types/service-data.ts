@@ -14,6 +14,7 @@ export interface ServiceDataMethod {
   parameters: ServiceDataParameter[];
   responseType: string;
   comments: string;
+  queryParamType?: string;
 }
 
 export interface ServiceDataParameter {
