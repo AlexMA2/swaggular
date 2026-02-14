@@ -216,7 +216,11 @@ export function generateContent(interfaceData: InterfaceData, deep: number = 0):
     imports.length > 0 ? `import { ${imports.join(', ')} } from "${path}models";` : '';
 
   if (interfaceData.type === 'interface') {
-    const content = `${importsTemplate}\n\nexport interface ${interfaceData.name} ${interfaceData.extendsFrom && interfaceData.extendsFrom.length > 0 ? `extends ${interfaceData.extendsFrom.join(', ')}` : ''} {
+    const genericTypes = interfaceData.properties
+      .filter((p) => ['T', 'R', 'P'].includes(p.type.replace('[]', '')))
+      .map((p) => p.type.replace('[]', ''));
+
+    const content = `${importsTemplate}\n\nexport interface ${interfaceData.name}${genericTypes.length > 0 ? `<${genericTypes.join(', ')}>` : ''} ${interfaceData.extendsFrom && interfaceData.extendsFrom.length > 0 ? `extends ${interfaceData.extendsFrom.join(', ')}` : ''} {
     ${interfaceData.properties
       .map((p) => `${p.comments}\n\t${lowerFirst(p.name)}${p.optional ? '?' : ''}: ${p.type};`)
       .join('\n')}
