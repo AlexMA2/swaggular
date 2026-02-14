@@ -36,7 +36,7 @@ export function generateServiceComments(
   parameters?: ServiceDataParameter[],
 ): string {
   const summarySplited: string[] = [];
-  const summaryWords = summary.split(' ');
+  const summaryWords = summary.replaceAll('\r', ' ').replaceAll('\n', ' ').split(' ');
 
   for (let i = 0; i < summaryWords.length; i += 10) {
     summarySplited.push(summaryWords.slice(i, i + 10).join(' '));
@@ -45,12 +45,16 @@ export function generateServiceComments(
   const comments: string[] = summarySplited;
 
   if (parameters && parameters.length > 0) {
-    comments.push(`${parameters.map((p) => `@param ${p.name} : ${p.type}`).join('\n')}`);
+    parameters.forEach((p) => {
+      comments.push(`@param ${p.name} : ${p.type}`);
+    });
   }
 
   if (responseType) {
     comments.push(`@returns Observable<${responseType}>`);
   }
 
-  return `\t/**\n${comments.map((c) => `\t* ${c}\n`).join('')} */`;
+  const result = `\t/**\n${comments.map((c) => `\t * ${c}\n`).join('')} \t */`;
+
+  return result;
 }
