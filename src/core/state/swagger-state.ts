@@ -25,6 +25,12 @@ export class SwaggerState {
     return this.swagger?.components?.schemas;
   }
 
+  getParameters():
+    | Record<string, OpenAPIV3.ReferenceObject | OpenAPIV3.ParameterObject>
+    | undefined {
+    return this.swagger?.components?.parameters;
+  }
+
   getPathsGroupedByScope(): GroupedPaths | undefined {
     return this.pathsGroupedByScope;
   }

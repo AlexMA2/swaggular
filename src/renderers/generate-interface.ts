@@ -20,12 +20,23 @@ export function parametersToIProperties(
   for (const param of parameters) {
     if (isReference(param)) {
       const ref = param.$ref.split('/').pop()!;
-      properties.push({
-        name: lowerFirst(ref),
-        type: ref,
-        optional: false,
-        comments: '',
-      });
+
+      if (param.$ref.includes('/components/parameters/')) {
+        const parameters = swaggerState.getParameters();
+        const parameter = parameters?.[ref];
+        if (parameter && !isReference(parameter)) {
+          if (parameter.in !== 'query') continue;
+
+          const tsType = parameter.schema ? switchTypeJson(parameter.schema) : 'any';
+          properties.push({
+            name: lowerFirst(parameter.name),
+            type: tsType,
+            optional: !parameter.required,
+            comments: generateInterfaceComments(parameter.schema),
+          });
+          continue;
+        }
+      }
       continue;
     }
     if (param.in !== 'query') continue;
@@ -131,7 +142,14 @@ export function computeParametersName(method: string, innerPath: string, grouped
     ),
   );
 
-  return name + groupedPath.groupName + upFirst(extra) + 'Params';
+  // Avoid duplication if extra starts with groupName
+  let suffix = extra;
+  const groupName = groupedPath.groupName;
+  if (suffix.startsWith(groupName)) {
+    suffix = suffix.substring(groupName.length);
+  }
+
+  return name + groupName + upFirst(suffix) + 'Params';
 }
 
 export function generateComponentsSchemas() {
@@ -157,6 +175,32 @@ export function generateComponentsSchemas() {
           }),
         };
         interfaces.push(interData);
+        continue;
+      }
+
+      // Handle simple types / aliases (e.g. Id: integer, ArticleList: ArticleForList[])
+      const targetType = switchTypeJson(value);
+      if (targetType) {
+        const imports: string[] = [];
+        const baseType = targetType.replace('[]', '');
+        if (!isNativeType(baseType)) {
+          imports.push(baseType);
+        }
+
+        interfaces.push({
+          name: key,
+          type: 'type',
+          imports,
+          properties: [
+            {
+              name: '',
+              type: targetType,
+              optional: false,
+              comments: generateInterfaceComments(value),
+            },
+          ],
+        });
+        continue;
       }
       continue;
     }
@@ -233,6 +277,11 @@ export function generateContent(interfaceData: InterfaceData, deep: number = 0):
     ${interfaceData.properties.map((p) => `${p.comments}\n\t${p.name} = '${p.type}',`).join('\n')}
   }`;
     return content;
+  }
+
+  if (interfaceData.type === 'type') {
+    const targetType = interfaceData.properties[0].type;
+    return `${importsTemplate}\n\nexport type ${interfaceData.name} = ${targetType};`;
   }
 
   return '';

@@ -14,6 +14,7 @@ import { generateServiceComments } from './generate-comments';
 import { removeFalsyValues } from '../utils/object-utils';
 import { computeParametersName } from './generate-interface';
 import { httpParamsHandler } from '../templates/services/http-params-handler';
+import { interfaceState } from '../core/state/interface-state';
 
 /**
  * Pick the paths grouped by scope and generate services for them.
@@ -318,11 +319,34 @@ function buildParameters(
   for (const param of allParams) {
     if (isReference(param)) {
       const ref = param.$ref.split('/').pop()!;
+      const interfaceData = interfaceState.getInterface(ref);
+
+      let paramType = ref;
+      let inType = interfaceData?.type !== undefined ? 'query' : 'path';
+      let required = true;
+
+      console.log(`DEBUG: checking ref ${ref}, $ref: ${param.$ref}, initial inType: ${inType}`);
+
+      if (param.$ref.includes('/components/parameters/')) {
+        const parameters = swaggerState.getParameters();
+        const parameter = parameters?.[ref];
+        if (parameter && !isReference(parameter)) {
+          inType = parameter.in;
+          required = parameter.required ?? false;
+          if (parameter.schema) {
+            paramType = switchTypeJson(parameter.schema);
+          }
+          console.log(`DEBUG: Found parameter ${ref}, in: ${inType}, type: ${paramType}`);
+        } else {
+          console.log(`DEBUG: Parameter ${ref} not found or is ref`);
+        }
+      }
+
       results.push({
         name: lowerFirst(ref),
-        in: 'query',
-        required: true,
-        type: ref,
+        in: inType,
+        required,
+        type: paramType,
       });
       continue;
     }
@@ -356,6 +380,7 @@ function buildParameters(
     });
   }
 
+  console.log('🚀 ~ buildParameters ~ results:', results);
   return results;
 }
 

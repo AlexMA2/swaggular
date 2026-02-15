@@ -13,8 +13,8 @@ export function toVariables(parsed: ParsedArgs): ArgsVariables {
   }
 
   return {
-    input: (parsed.args.input as string) || 'swagger.json',
-    output: (parsed.args.output as string) || 'results',
+    input: (parsed.args.input as string) || (parsed.args.i as string) || 'swagger.json',
+    output: (parsed.args.output as string) || (parsed.args.o as string) || 'results',
     noGenerate: (parsed.args.noGenerate as boolean) || false,
     groupingMode: variables.groupingMode || 'path',
     segmentsToIgnore: variables.segmentsToIgnore || ['api'],

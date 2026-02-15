@@ -27,6 +27,10 @@ class InterfaceState implements InterfaceStateI {
       this.generatedInterfaces[inter.name] = inter;
     }
   }
+
+  getInterface(name: string): InterfaceData | undefined {
+    return this.generatedInterfaces[name] || this.generatedEnums[name];
+  }
 }
 
 export const interfaceState = new InterfaceState();

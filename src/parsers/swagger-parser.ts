@@ -9,8 +9,6 @@ export class SwaggerParser {
     try {
       const swagger = this.loadJsonOrYaml(filePath);
 
-      if (!swagger) return;
-
       const pathsGroupedByScope = PathGrouper.groupPaths(swagger.paths, options);
 
       swaggerState.setSwagger(swagger);
