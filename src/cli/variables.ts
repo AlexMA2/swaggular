@@ -1,4 +1,5 @@
 import { ArgsVariables, ParsedArgs } from '../types/parsed-args';
+import { loadConfig } from '../utils/config-loader';
 
 export function toVariables(parsed: ParsedArgs): ArgsVariables {
   const variables: Partial<ArgsVariables> = {};
@@ -12,11 +13,29 @@ export function toVariables(parsed: ParsedArgs): ArgsVariables {
     }
   }
 
+  const configPath = parsed.args.config as string | undefined;
+  const fileConfig = loadConfig(configPath);
+
+  const mergedConfig = { ...fileConfig, ...variables };
+
   return {
-    input: (parsed.args.input as string) || (parsed.args.i as string) || 'swagger.json',
-    output: (parsed.args.output as string) || (parsed.args.o as string) || 'results',
+    input:
+      (parsed.args.input as string) ||
+      (parsed.args.i as string) ||
+      parsed.positional[0] ||
+      mergedConfig.input ||
+      'swagger.json',
+    output:
+      (parsed.args.output as string) ||
+      (parsed.args.o as string) ||
+      parsed.positional[1] ||
+      mergedConfig.output ||
+      'results',
     noGenerate: (parsed.args.noGenerate as boolean) || false,
-    groupingMode: variables.groupingMode || 'path',
-    segmentsToIgnore: variables.segmentsToIgnore || ['api'],
+    groupingMode: variables.groupingMode || mergedConfig.groupingMode || 'path',
+    segmentsToIgnore: variables.segmentsToIgnore || mergedConfig.segmentsToIgnore || ['api'],
+    // Pass entire config if needed for templates
+    templates: mergedConfig.templates,
+    types: mergedConfig.types,
   };
 }

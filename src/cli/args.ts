@@ -20,6 +20,12 @@ export function getParseArgs(argv: string[]): ParsedArgs {
       if (!next || next.startsWith('-')) {
         args[k] = true;
       } else {
+        // Special handling for --config to allow relative paths
+        if (k === 'config') {
+          args[k] = next;
+          i++;
+          continue;
+        }
         args[k] = next;
         i++;
       }

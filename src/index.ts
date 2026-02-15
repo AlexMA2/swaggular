@@ -20,11 +20,11 @@ export async function main() {
       ignoreVariables: true,
     });
 
-    generateInterfaces();
+    generateInterfaces(variables);
     generateServices();
 
-    const interfaceFiles = generateInterfacesFiles();
-    const serviceFiles = generateServiceFiles();
+    const interfaceFiles = generateInterfacesFiles(undefined, variables);
+    const serviceFiles = generateServiceFiles(undefined, variables.templates);
 
     if (variables.noGenerate) {
       console.log('Files not generated');

@@ -1,0 +1,17 @@
+
+import { HttpClient } from "@angular/common/http";
+import { Observable } from "rxjs";
+import { inject, Injectable } from '@angular/core';
+{{modelImports}}
+{{httpParamsHandlerImport}}
+
+@Injectable({
+    providedIn: "root"
+})
+export class {{name}}Service {    
+
+  private readonly baseUrl = `{{baseUrl}}`;
+  private readonly http = inject(HttpClient);
+
+{{methods}}
+}

@@ -4,14 +4,13 @@ import { GroupedPath } from '../types/grouped-paths';
 import { InterfaceData, InterfaceDataProperty } from '../types/interface-data';
 import { interfaceState } from '../core/state/interface-state';
 import { swaggerState } from '../core/state/swagger-state';
-import { computeExtendsFromType, extendsFromTypes } from '../templates/types/extends-from-types';
-import { genericTypesData, isGenericType } from '../templates/types/generic-types';
 import { switchTypeJson } from '../utils/build-types';
 import { removeFalsyValues } from '../utils/object-utils';
 import { createBaseUrl, getExtraSegments, removeVariablesFromPath } from '../utils/path-utils';
 import { kebabToPascalCase, lowerFirst, toKebabCase, upFirst } from '../utils/string-utils';
 import { isNativeType, isReference } from '../utils/type-guard';
 import { generateInterfaceComments } from './generate-comments';
+import { SwaggularConfig } from '../types/config';
 
 export function parametersToIProperties(
   parameters: (OpenAPIV3.ParameterObject | OpenAPIV3.ReferenceObject)[],
@@ -76,16 +75,59 @@ export function propertiesToIProperties(
   return interfaceDataProperties;
 }
 
-export function generateInterfaces() {
-  generateComponentsSchemas();
-  generateWithParameters();
+function isGenericType(data: InterfaceData, genericTypes: InterfaceData[]): boolean {
+  for (const genericType of genericTypes) {
+    if (genericType.properties.length !== data.properties.length) continue;
+
+    const dataProperties = data.properties.map((p) => p.name);
+    const genericTypeProperties = genericType.properties.map((p) => p.name);
+
+    if (genericTypeProperties.some((p) => !dataProperties.includes(p))) continue;
+    return true; // Match found
+  }
+  return false;
 }
 
-export function generateWithParameters() {
+function computeExtendsFromType(data: InterfaceData, extendsTypes: InterfaceData[]): InterfaceData {
+  for (const extendsFromType of extendsTypes) {
+    const dataPropertiesReq = data.properties.filter((p) => !p.optional).map((p) => p.name);
+
+    const extendsFromTypePropertiesReq = extendsFromType.properties
+      .filter((p) => !p.optional)
+      .map((p) => p.name);
+
+    if (extendsFromTypePropertiesReq.some((p) => !dataPropertiesReq.includes(p))) {
+      continue;
+    }
+
+    const extensionProperties = extendsFromType.properties.map((p) => p.name.toLowerCase());
+
+    return {
+      ...data,
+      properties: data.properties.filter(
+        (p) => !extensionProperties.includes(p.name.toLowerCase()),
+      ),
+      imports: [...data.imports, extendsFromType.name],
+      extendsFrom: [...(data.extendsFrom ?? []), extendsFromType.name],
+    };
+  }
+
+  return data;
+}
+
+export function generateInterfaces(templatesConfig?: SwaggularConfig) {
+  generateComponentsSchemas(templatesConfig);
+  generateWithParameters(templatesConfig);
+}
+
+export function generateWithParameters(templatesConfig?: SwaggularConfig) {
   const paths = swaggerState.getPaths();
   const groupedPaths = swaggerState.getPathsGroupedByScope();
   if (!paths || !groupedPaths) return;
   const interfacesData: InterfaceData[] = [];
+
+  const genericTypes = templatesConfig?.types?.generic ?? [];
+  const extendsTypes = templatesConfig?.types?.extendsFrom ?? [];
 
   for (const groupedPath of Object.values(groupedPaths)) {
     for (const innerPath of groupedPath.paths) {
@@ -112,10 +154,10 @@ export function generateWithParameters() {
           properties,
         };
 
-        const generic = isGenericType(interData);
+        const generic = isGenericType(interData, genericTypes);
         if (generic) continue;
 
-        const interDataWithExtendsFrom = computeExtendsFromType(interData);
+        const interDataWithExtendsFrom = computeExtendsFromType(interData, extendsTypes);
 
         interfacesData.push(interDataWithExtendsFrom);
       }
@@ -152,11 +194,16 @@ export function computeParametersName(method: string, innerPath: string, grouped
   return name + groupName + upFirst(suffix) + 'Params';
 }
 
-export function generateComponentsSchemas() {
+export function generateComponentsSchemas(templatesConfig?: SwaggularConfig) {
   const schemas: Record<string, OpenAPIV3.ReferenceObject | OpenAPIV3.SchemaObject> | undefined =
     swaggerState.getSchemas();
   if (!schemas) return;
   const interfaces: InterfaceData[] = [];
+  const genericMappings = new Map<string, string>();
+
+  const genericTypes = templatesConfig?.types?.generic ?? [];
+  const extendsTypes = templatesConfig?.types?.extendsFrom ?? [];
+
   for (const [key, value] of Object.entries(schemas)) {
     if (isReference(value)) continue;
     if (!value.properties) {
@@ -178,7 +225,6 @@ export function generateComponentsSchemas() {
         continue;
       }
 
-      // Handle simple types / aliases (e.g. Id: integer, ArticleList: ArticleForList[])
       const targetType = switchTypeJson(value);
       if (targetType) {
         const imports: string[] = [];
@@ -215,30 +261,66 @@ export function generateComponentsSchemas() {
         }),
       properties,
     };
-    const generic = isGenericType(interData);
+
+    const generic = isGenericType(interData, genericTypes);
 
     if (generic) {
+      const genericType = genericTypes.find((g) => {
+        if (g.properties.length !== interData.properties.length) return false;
+        const gProps = g.properties.map((p) => p.name);
+        const dProps = interData.properties.map((p) => p.name);
+        return !gProps.some((p) => !dProps.includes(p));
+      });
+
+      if (genericType) {
+        const genericName = computeGenericType(interData, genericType);
+        genericMappings.set(key, genericName);
+      }
       continue;
     }
 
-    const interDataWithExtendsFrom = computeExtendsFromType(interData);
-
+    const interDataWithExtendsFrom = computeExtendsFromType(interData, extendsTypes);
     interfaces.push(interDataWithExtendsFrom);
+  }
+
+  // Update properties of all interfaces to use generic mappings
+  for (const inter of interfaces) {
+    inter.properties.forEach((p) => {
+      if (genericMappings.has(p.type)) {
+        p.type = genericMappings.get(p.type)!;
+      } else if (p.type.endsWith('[]')) {
+        const base = p.type.replace('[]', '');
+        if (genericMappings.has(base)) {
+          p.type = genericMappings.get(base)! + '[]';
+        }
+      }
+    });
   }
 
   interfaceState.addInterfaces(interfaces);
 }
 
-export function generateInterfacesFiles(locations?: Record<string, string[]>): FileContent[] {
+function computeGenericType(newInterface: InterfaceData, genericType: InterfaceData): string {
+  const typeParam = newInterface.name.replace(genericType.name, '');
+  return `${genericType.name}<${typeParam}>`;
+}
+
+export function generateInterfacesFiles(
+  locations?: Record<string, string[]>,
+  templatesConfig?: SwaggularConfig,
+): FileContent[] {
+  const genericTypes = templatesConfig?.types?.generic ?? [];
+  const extendsTypes = templatesConfig?.types?.extendsFrom ?? [];
+
   const interfacesData = [
-    ...genericTypesData,
-    ...extendsFromTypes,
+    ...genericTypes,
+    ...extendsTypes,
     ...Array.from(Object.values(interfaceState.generatedInterfaces)),
   ];
 
   const filesContent: FileContent[] = [];
-  for (const [key, value] of Object.entries(interfacesData)) {
-    const location = [value.type === 'enum' ? 'enums' : 'dtos', ...(locations?.[key] ?? [])];
+  for (const value of interfacesData) {
+    const location = [value.type === 'enum' ? 'enums' : 'dtos', ...(locations?.[value.name] ?? [])];
     const content = generateContent(value, location.length + 1);
     const extraName = value.type === 'enum' ? 'enum' : 'dto';
     filesContent.push({

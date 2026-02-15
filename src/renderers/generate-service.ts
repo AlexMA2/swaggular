@@ -5,7 +5,6 @@ import { ServiceData, ServiceDataMethod, ServiceDataParameter } from '../types/s
 import { AngularRequestType } from '../types/types';
 import { serviceState } from '../core/state/service-state';
 import { swaggerState } from '../core/state/swagger-state';
-import { angularTemplate, AngularServiceTemplate } from '../templates/services/angular-template';
 import { switchTypeJson } from '../utils/build-types';
 import { getExtraSegments, isVariable } from '../utils/path-utils';
 import { lowerFirst, toKebabCase, upFirst, toPascalCase } from '../utils/string-utils';
@@ -13,8 +12,10 @@ import { isNativeType, isReference } from '../utils/type-guard';
 import { generateServiceComments } from './generate-comments';
 import { removeFalsyValues } from '../utils/object-utils';
 import { computeParametersName } from './generate-interface';
-import { httpParamsHandler } from '../templates/services/http-params-handler';
 import { interfaceState } from '../core/state/interface-state';
+import { SwaggularConfig } from '../types/config';
+import { renderServiceTemplate } from '../utils/template-renderer';
+import { ServiceTemplateParams } from '../types/template';
 
 /**
  * Pick the paths grouped by scope and generate services for them.
@@ -72,28 +73,43 @@ function addTypeToImports(type: string, imports: Set<string>) {
   }
 }
 
-export function generateServiceFiles(locations?: Record<string, string[]>): FileContent[] {
+export function generateServiceFiles(
+  locations?: Record<string, string[]>,
+  templatesConfig?: SwaggularConfig['templates'],
+): FileContent[] {
   const services = Object.values(serviceState.services);
   const filesContent: FileContent[] = [];
 
   for (const service of services) {
     const location = ['services', ...(locations?.[service.name] ?? [])];
 
+    const serviceTemplateConfig = templatesConfig?.service;
+    const templatePath = serviceTemplateConfig?.path || 'templates/angular-service.template';
+
     const methods = service.methods
       .map((method) => {
-        return buildMethodTemplate(method);
+        return buildMethodTemplate(method, serviceTemplateConfig?.options?.httpParamsHandler);
       })
       .join('\n\n');
 
-    const templateParams: AngularServiceTemplate = {
+    const allImports = Array.from(new Set([...service.imports])).sort();
+    const hasHttpParams = service.methods.some((m) => !!m.queryParamType);
+
+    const templateParams: ServiceTemplateParams = {
       name: service.name,
       baseUrl: service.baseUrl,
       methods: methods,
-      imports: service.imports.join(', '),
-      hasHttpParamsHandler: service.methods.some((m) => !!m.queryParamType),
+      imports: allImports.join(', '),
+      modelImports:
+        allImports.length > 0 ? `import { ${allImports.join(', ')} } from '../models';` : '',
+      hasHttpParamsHandler: hasHttpParams,
+      httpParamsHandler: serviceTemplateConfig?.options?.httpParamsHandler,
+      httpParamsHandlerImport: hasHttpParams
+        ? serviceTemplateConfig?.options?.httpParamsHandlerImport
+        : '',
     };
 
-    const content = angularTemplate(templateParams);
+    const content = renderServiceTemplate(templatePath, templateParams);
 
     filesContent.push({
       location: location,
@@ -168,16 +184,6 @@ function pathItemToMethods(
   }) as Record<string, OpenAPIV3.OperationObject>;
 }
 
-/**
- * buildMethodName: High-performance semantic naming algorithm.
- *
- * This engine generates clean, non-redundant, and intuitive method names by
- * analyzing the relationship between the base URL and extra path segments.
- *
- * For Mutation methods (POST, PUT, PATCH, DELETE), it prioritizes using the
- * path segments as the method name itself if they describe an action,
- * avoiding generic "create" or "update" prefixes where possible.
- */
 function buildMethodName(
   method: string,
   path: string,
@@ -185,7 +191,6 @@ function buildMethodName(
   usedNames: string[],
   serviceName: string,
 ): string {
-  // 1. Core mapping of HTTP verbs to professional action prefixes
   const verbMap: Record<string, string> = {
     get: 'get',
     post: 'create',
@@ -197,7 +202,6 @@ function buildMethodName(
 
   const segments = getExtraSegments(path, groupedPath.baseUrl);
 
-  // 2. Redundancy Filtering: Remove segments already implied by the service name
   const serviceWords = serviceName.split(/(?=[A-Z])/).map((w: string) => w.toLowerCase());
   const cleanSegments = segments.filter((seg) => {
     if (isVariable(seg)) return true;
@@ -205,7 +209,6 @@ function buildMethodName(
     return !segWords.every((sw) => serviceWords.includes(sw));
   });
 
-  // 3. Structural Analysis: Identify resources and variable positioning
   const staticBefore: string[] = [];
   const variableParts: string[] = [];
   const staticAfter: string[] = [];
@@ -224,7 +227,6 @@ function buildMethodName(
 
   const nameParts: string[] = [];
 
-  // 4. Logic specific to data fetching (GET)
   if (method.toLowerCase() === 'get') {
     nameParts.push('get');
     if (staticAfter.length > 0) {
@@ -236,15 +238,11 @@ function buildMethodName(
     } else if (variableParts.length > 0) {
       nameParts.push('ById');
     }
-  }
-  // 5. Logic for state mutation (POST, PUT, PATCH, DELETE)
-  else {
+  } else {
     const actionParts = [...staticBefore, ...staticAfter];
     if (actionParts.length > 0) {
-      // If the path contains an action (e.g., /assign, /send-to-user), use it directly.
       nameParts.push(toPascalCase(actionParts));
     } else {
-      // No extra segments, use the default verb prefix (e.g., create, update)
       nameParts.push(upFirst(defaultVerb));
     }
 
@@ -253,7 +251,6 @@ function buildMethodName(
     }
   }
 
-  // 6. Pattern-based Refinement: Detect and prioritize standard REST suffixes
   const normalizedPath = path.toLowerCase();
   const suffixes = [
     { pattern: '/all', label: 'All' },
@@ -273,22 +270,18 @@ function buildMethodName(
     }
   }
 
-  // 7. Base candidate assembly
   let candidateName = lowerFirst(nameParts.join(''));
 
-  // Simplification for the primary resource GET
   if (candidateName === 'getById' && !usedNames.includes('get')) {
     candidateName = 'get';
   }
 
-  // Fallback for empty/ambiguous names
   if (candidateName === '' || (candidateName === defaultVerb && segments.length > 0)) {
     candidateName = lowerFirst(
       defaultVerb + toPascalCase(segments.map((s) => s.replace(/[{}]/g, ''))),
     );
   }
 
-  // 8. Multi-strategy Collision Resolution
   let finalName = candidateName;
   let counter = 0;
 
@@ -325,8 +318,6 @@ function buildParameters(
       let inType = interfaceData?.type !== undefined ? 'query' : 'path';
       let required = true;
 
-      console.log(`DEBUG: checking ref ${ref}, $ref: ${param.$ref}, initial inType: ${inType}`);
-
       if (param.$ref.includes('/components/parameters/')) {
         const parameters = swaggerState.getParameters();
         const parameter = parameters?.[ref];
@@ -336,9 +327,6 @@ function buildParameters(
           if (parameter.schema) {
             paramType = switchTypeJson(parameter.schema);
           }
-          console.log(`DEBUG: Found parameter ${ref}, in: ${inType}, type: ${paramType}`);
-        } else {
-          console.log(`DEBUG: Parameter ${ref} not found or is ref`);
         }
       }
 
@@ -380,7 +368,6 @@ function buildParameters(
     });
   }
 
-  console.log('🚀 ~ buildParameters ~ results:', results);
   return results;
 }
 
@@ -395,7 +382,10 @@ function buildResponseType(responses: OpenAPIV3.ResponsesObject): string {
   return switchTypeJson(content.schema);
 }
 
-function buildMethodTemplate(method: ServiceDataMethod): string {
+function buildMethodTemplate(
+  method: ServiceDataMethod,
+  httpParamsHandlerTemplate?: string,
+): string {
   const pathParams = method.parameters.filter((p) => p.in === 'path');
   const bodyParam = method.parameters.find((p) => p.in === 'body');
 
@@ -421,7 +411,12 @@ function buildMethodTemplate(method: ServiceDataMethod): string {
   const optionsList: string[] = [];
 
   if (method.queryParamType) {
-    handler = `\n\t\t${httpParamsHandler('queryParams')}`;
+    if (httpParamsHandlerTemplate) {
+      handler = `\n\t\t${httpParamsHandlerTemplate.replace('${params}', 'queryParams')}`;
+    } else {
+      handler = `\n\t\tconst params = queryParams;`;
+    }
+
     optionsList.push('params');
   }
 
