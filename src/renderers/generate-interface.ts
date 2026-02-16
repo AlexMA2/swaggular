@@ -275,6 +275,7 @@ export function generateComponentsSchemas(templatesConfig?: SwaggularConfig) {
       if (genericType) {
         const genericName = computeGenericType(interData, genericType);
         genericMappings.set(key, genericName);
+        interfaceState.addTypeMapping(key, genericName);
       }
       continue;
     }

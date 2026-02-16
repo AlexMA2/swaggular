@@ -34,6 +34,7 @@ export function renderServiceTemplate(templatePath: string, params: ServiceTempl
 
   // Handle conditional logic for httpParamsHandlerImport
   result = result.replace(/{{httpParamsHandlerImport}}/g, params.httpParamsHandlerImport || '');
+  result = result.replace(/{{extraAngularImports}}/g, params.extraAngularImports || '');
 
   // Cleanup excessive newlines (3 or more, potentially with spaces) to just 2
   result = result.replace(/(\r?\n\s*){3,}/g, '\n\n');

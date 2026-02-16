@@ -7,4 +7,5 @@ export interface ServiceTemplateParams {
   httpParamsHandler?: string;
   httpParamsHandlerImport?: string;
   modelImports?: string;
+  extraAngularImports?: string;
 }

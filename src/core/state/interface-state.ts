@@ -9,6 +9,7 @@ export interface InterfaceStateI {
 class InterfaceState implements InterfaceStateI {
   generatedInterfaces: Record<string, InterfaceData> = {};
   generatedEnums: Record<string, InterfaceData> = {};
+  typeMappings: Record<string, string> = {};
 
   componentsSchemas: Record<string, IJsonSchema> = {};
 
@@ -30,6 +31,14 @@ class InterfaceState implements InterfaceStateI {
 
   getInterface(name: string): InterfaceData | undefined {
     return this.generatedInterfaces[name] || this.generatedEnums[name];
+  }
+
+  addTypeMapping(original: string, mapped: string): void {
+    this.typeMappings[original] = mapped;
+  }
+
+  getTypeMapping(original: string): string | undefined {
+    return this.typeMappings[original];
   }
 }
 

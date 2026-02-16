@@ -1,3 +1,5 @@
+import { interfaceState } from '../core/state/interface-state';
+
 export function buildTypes(masterSchema: any, defaultType: string = 'any'): string {
   if (!masterSchema) return defaultType;
 
@@ -18,14 +20,8 @@ export function buildTypes(masterSchema: any, defaultType: string = 'any'): stri
   const ref = schema?.['$ref'];
 
   if (ref) {
-    const iface = ref.split('/').pop()!;
-    const isPagedResultDto = iface.endsWith('PagedResultDto');
-
-    if (isPagedResultDto) {
-      return `PagedResultDto<${iface.replace('PagedResultDto', '')}>`;
-    }
-
-    return iface;
+    const name = ref.split('/').pop()!;
+    return interfaceState.getTypeMapping(name) || name;
   }
 
   return switchTypeJson(schema);
@@ -39,14 +35,8 @@ export function switchTypeJson(schema: any): string {
   const format = schema?.['format'];
 
   if (ref) {
-    const iface = ref.split('/').pop()!;
-    const isPagedResultDto = iface.endsWith('PagedResultDto');
-
-    if (isPagedResultDto) {
-      return `PagedResultDto<${iface.replace('PagedResultDto', '')}>`;
-    }
-
-    return iface;
+    const name = ref.split('/').pop()!;
+    return interfaceState.getTypeMapping(name) || name;
   }
 
   if (type === 'object') {

@@ -93,6 +93,7 @@ export function generateServiceFiles(
       .join('\n\n');
 
     const allImports = Array.from(new Set([...service.imports])).sort();
+
     const hasHttpParams = service.methods.some((m) => !!m.queryParamType);
 
     const templateParams: ServiceTemplateParams = {
@@ -107,6 +108,7 @@ export function generateServiceFiles(
       httpParamsHandlerImport: hasHttpParams
         ? serviceTemplateConfig?.options?.httpParamsHandlerImport
         : '',
+      extraAngularImports: hasHttpParams ? ', HttpParams' : '',
     };
 
     const content = renderServiceTemplate(templatePath, templateParams);
@@ -314,7 +316,7 @@ function buildParameters(
       const ref = param.$ref.split('/').pop()!;
       const interfaceData = interfaceState.getInterface(ref);
 
-      let paramType = ref;
+      let paramType = interfaceState.getTypeMapping(ref) || ref;
       let inType = interfaceData?.type !== undefined ? 'query' : 'path';
       let required = true;
 
@@ -374,7 +376,10 @@ function buildParameters(
 function buildResponseType(responses: OpenAPIV3.ResponsesObject): string {
   const success = responses['200'] || responses['201'] || responses['204'] || responses['default'];
   if (!success) return 'any';
-  if (isReference(success)) return success.$ref.split('/').pop()!;
+  if (isReference(success)) {
+    const name = success.$ref.split('/').pop()!;
+    return interfaceState.getTypeMapping(name) || name;
+  }
 
   const content = success.content?.['application/json'];
   if (!content || !content.schema) return 'any';
@@ -407,16 +412,9 @@ function buildMethodTemplate(
     .join('/');
   const url = `\`\${this.baseUrl}${pathStr ? '/' + pathStr : ''}\``;
 
-  let handler = '';
   const optionsList: string[] = [];
 
   if (method.queryParamType) {
-    if (httpParamsHandlerTemplate) {
-      handler = `\n\t\t${httpParamsHandlerTemplate.replace('${params}', 'queryParams')}`;
-    } else {
-      handler = `\n\t\tconst params = queryParams;`;
-    }
-
     optionsList.push('params');
   }
 
@@ -437,8 +435,30 @@ function buildMethodTemplate(
       ? `this.http.${method.method}${genericType}(${url}, {}${options})`
       : `this.http.${method.method}${genericType}(${url}${options})`;
 
+  let paramsLogic = '';
+  if (method.queryParamType) {
+    if (httpParamsHandlerTemplate) {
+      paramsLogic = `\n\t\t${httpParamsHandlerTemplate.replace('${params}', 'queryParams')}`;
+    } else {
+      paramsLogic = `
+    let params = new HttpParams();
+    if (queryParams) {
+      for (const [key, value] of Object.entries(queryParams)) {
+        if (value === undefined || value === null) continue;
+        if (Array.isArray(value)) {
+          value.forEach((v) => (params = params.append(key, v)));
+        } else if (typeof value === 'object' && !(value instanceof Date) && !(value instanceof Blob)) {
+          params = params.set(key, JSON.stringify(value));
+        } else {
+          params = params.set(key, value as any);
+        }
+      }
+    }`;
+    }
+  }
+
   return `${method.comments}
-  ${method.name}(${argsString}): Observable<${method.responseType}> {${handler}
+  ${method.name}(${argsString}): Observable<${method.responseType}> {${paramsLogic}
     return ${methodCall};
   }`;
 }
