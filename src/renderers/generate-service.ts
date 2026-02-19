@@ -102,7 +102,9 @@ export function generateServiceFiles(
       methods: methods,
       imports: allImports.join(', '),
       modelImports:
-        allImports.length > 0 ? `import { ${allImports.join(', ')} } from '../models';` : '',
+        allImports.length > 0
+          ? `import { ${allImports.join(', ')} } from '${'../'.repeat(location.length)}models';`
+          : '',
       hasHttpParamsHandler: hasHttpParams,
       httpParamsHandler: serviceTemplateConfig?.options?.httpParamsHandler,
       httpParamsHandlerImport: hasHttpParams
