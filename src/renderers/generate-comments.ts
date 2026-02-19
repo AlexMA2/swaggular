@@ -24,7 +24,7 @@ export function generateInterfaceComments(param: any): string {
   }
 
   if (comments.length > 0) {
-    return `  /**\n   * ${comments.join('\n   * ')}\n   */`;
+    return `/**\n   * ${comments.join('\n   * ')}\n   */`;
   }
 
   return '';

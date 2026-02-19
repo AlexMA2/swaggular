@@ -1,13 +1,12 @@
 import { OpenAPIV3 } from 'openapi-types';
 import { FileContent } from '../types/file-content';
-import { GroupedPath } from '../types/grouped-paths';
 import { InterfaceData, InterfaceDataProperty } from '../types/interface-data';
 import { interfaceState } from '../core/state/interface-state';
 import { swaggerState } from '../core/state/swagger-state';
 import { switchTypeJson } from '../utils/build-types';
 import { removeFalsyValues } from '../utils/object-utils';
-import { createBaseUrl, getExtraSegments, removeVariablesFromPath } from '../utils/path-utils';
-import { kebabToPascalCase, lowerFirst, toKebabCase, upFirst } from '../utils/string-utils';
+import { computeParametersName } from '../utils/path-utils';
+import { lowerFirst, toKebabCase } from '../utils/string-utils';
 import { isNativeType, isReference } from '../utils/type-guard';
 import { generateInterfaceComments } from './generate-comments';
 import { SwaggularConfig } from '../types/config';
@@ -100,6 +99,12 @@ function computeExtendsFromType(data: InterfaceData, extendsTypes: InterfaceData
       continue;
     }
 
+    if (
+      !extendsFromType.properties.some((ep) => data.properties.some((dp) => dp.name === ep.name))
+    ) {
+      continue;
+    }
+
     const extensionProperties = extendsFromType.properties.map((p) => p.name.toLowerCase());
 
     return {
@@ -165,33 +170,6 @@ export function generateWithParameters(templatesConfig?: SwaggularConfig) {
   }
 
   interfaceState.addInterfaces(interfacesData);
-}
-
-export function computeParametersName(method: string, innerPath: string, groupedPath: GroupedPath) {
-  const dict: Record<string, string> = {
-    get: '',
-    post: 'Create',
-    put: 'Update',
-    delete: 'Delete',
-    patch: 'Patch',
-  };
-
-  const name = dict[method];
-
-  const extra = kebabToPascalCase(
-    removeVariablesFromPath(
-      getExtraSegments(innerPath, createBaseUrl(groupedPath.baseSegments)).join(''),
-    ),
-  );
-
-  // Avoid duplication if extra starts with groupName
-  let suffix = extra;
-  const groupName = groupedPath.groupName;
-  if (suffix.startsWith(groupName)) {
-    suffix = suffix.substring(groupName.length);
-  }
-
-  return name + groupName + upFirst(suffix) + 'Params';
 }
 
 export function generateComponentsSchemas(templatesConfig?: SwaggularConfig) {
@@ -349,7 +327,7 @@ export function generateContent(interfaceData: InterfaceData, deep: number = 0):
 
     const content = `${importsTemplate}\n\nexport interface ${interfaceData.name}${genericTypes.length > 0 ? `<${genericTypes.join(', ')}>` : ''} ${interfaceData.extendsFrom && interfaceData.extendsFrom.length > 0 ? `extends ${interfaceData.extendsFrom.join(', ')}` : ''} {
     ${interfaceData.properties
-      .map((p) => `${p.comments}\n\t${lowerFirst(p.name)}${p.optional ? '?' : ''}: ${p.type};`)
+      .map((p) => `${p.comments}\n  ${lowerFirst(p.name)}${p.optional ? '?' : ''}: ${p.type};`)
       .join('\n')}
   }`;
     return content;
@@ -357,7 +335,7 @@ export function generateContent(interfaceData: InterfaceData, deep: number = 0):
 
   if (interfaceData.type === 'enum') {
     const content = `export enum ${interfaceData.name} {
-    ${interfaceData.properties.map((p) => `${p.comments}\n\t${p.name} = '${p.type}',`).join('\n')}
+    ${interfaceData.properties.map((p) => `${p.comments}\n  ${p.name} = '${p.type}',`).join('\n')}
   }`;
     return content;
   }

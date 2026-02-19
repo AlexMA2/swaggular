@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { SwaggerParser } from './parsers/swagger-parser';
+import { computeLocations } from './utils/location-factory';
 import { generateInterfaces, generateInterfacesFiles } from './renderers/generate-interface';
 import { generateServiceFiles, generateServices } from './renderers/generate-service';
 import { getParseArgs } from './cli/args';
@@ -20,11 +21,13 @@ export async function main() {
       ignoreVariables: true,
     });
 
+    const locations = computeLocations();
+
     generateInterfaces(variables);
     generateServices();
 
-    const interfaceFiles = generateInterfacesFiles(undefined, variables);
-    const serviceFiles = generateServiceFiles(undefined, variables.templates);
+    const interfaceFiles = generateInterfacesFiles(locations, variables);
+    const serviceFiles = generateServiceFiles(locations, variables.templates);
 
     if (variables.noGenerate) {
       console.log('Files not generated');

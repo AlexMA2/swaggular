@@ -11,7 +11,7 @@ import { lowerFirst, toKebabCase, upFirst, toPascalCase } from '../utils/string-
 import { isNativeType, isReference } from '../utils/type-guard';
 import { generateServiceComments } from './generate-comments';
 import { removeFalsyValues } from '../utils/object-utils';
-import { computeParametersName } from './generate-interface';
+import { computeParametersName } from '../utils/path-utils';
 import { interfaceState } from '../core/state/interface-state';
 import { SwaggularConfig } from '../types/config';
 import { renderServiceTemplate } from '../utils/template-renderer';
@@ -108,7 +108,8 @@ export function generateServiceFiles(
       httpParamsHandlerImport: hasHttpParams
         ? serviceTemplateConfig?.options?.httpParamsHandlerImport
         : '',
-      extraAngularImports: hasHttpParams ? ', HttpParams' : '',
+      extraAngularImports:
+        hasHttpParams && !serviceTemplateConfig?.options?.httpParamsHandler ? ', HttpParams' : '',
     };
 
     const content = renderServiceTemplate(templatePath, templateParams);
@@ -438,7 +439,7 @@ function buildMethodTemplate(
   let paramsLogic = '';
   if (method.queryParamType) {
     if (httpParamsHandlerTemplate) {
-      paramsLogic = `\n\t\t${httpParamsHandlerTemplate.replace('${params}', 'queryParams')}`;
+      paramsLogic = `\n    ${httpParamsHandlerTemplate.replace('${params}', 'queryParams')}`;
     } else {
       paramsLogic = `
     let params = new HttpParams();

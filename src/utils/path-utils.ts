@@ -1,3 +1,6 @@
+import { GroupedPath } from '../types/grouped-paths';
+import { kebabToPascalCase, upFirst } from './string-utils';
+
 export function isVariable(segment: string): boolean {
   return /^\{.+\}$/.test(segment);
 }
@@ -63,4 +66,31 @@ export function standarizedPath(path: string): string {
   const splitted = path.split('/');
   const filtered = splitted.filter((p) => p !== '').map((p) => p.toLowerCase());
   return filtered.join('/');
+}
+
+export function computeParametersName(method: string, innerPath: string, groupedPath: GroupedPath) {
+  const dict: Record<string, string> = {
+    get: '',
+    post: 'Create',
+    put: 'Update',
+    delete: 'Delete',
+    patch: 'Patch',
+  };
+
+  const name = dict[method];
+
+  const extra = kebabToPascalCase(
+    removeVariablesFromPath(
+      getExtraSegments(innerPath, createBaseUrl(groupedPath.baseSegments)).join(''),
+    ),
+  );
+
+  // Avoid duplication if extra starts with groupName
+  let suffix = extra;
+  const groupName = groupedPath.groupName;
+  if (suffix.startsWith(groupName)) {
+    suffix = suffix.substring(groupName.length);
+  }
+
+  return name + groupName + upFirst(suffix) + 'Params';
 }
