@@ -1,7 +1,3 @@
-export function kebabToCamelCase(str: string): string {
-  return str.replace(/-([a-z])/g, (_, char) => char.toUpperCase());
-}
-
 export function kebabToPascalCase(str: string): string {
   const camel = str.replace(/-([a-z])/g, (_, char) => char.toUpperCase());
   return camel.charAt(0).toUpperCase() + camel.slice(1);
