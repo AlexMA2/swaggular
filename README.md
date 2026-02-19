@@ -1,8 +1,10 @@
 # Swaggular
 
 A powerful tool to generate Angular services and models from Swagger/OpenAPI specifications.
-Note: Currently, it does not detects generic types or common interfaces. If you want a more
-customized version, please download the project in github and modify the templates folder.
+
+You can create a configuration file to customize the generation process.
+
+If you want a more customized version, you are invited to download the project in github and modify the project.
 
 ## Features
 
