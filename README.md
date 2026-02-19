@@ -59,7 +59,49 @@ You can configure Swaggular using CLI arguments or a configuration file (e.g., `
 
 ### Configuration File (`SwaggularConfig`)
 
-You can create a `swaggular.config.json` file in your project root to define advanced configurations, such as custom templates, base classes for DTOs, or generic types.
+You can create a `swaggular.config.json` file in your project root to define advanced configurations. Below is the detailed structure of the configuration object.
+
+#### **Properties**
+
+- **`input`** _(optional)_: `string` - Path to the input Swagger/OpenAPI file (e.g., `swagger.json`). If not specified, defaults to the basic input.
+- **`output`** _(optional)_: `string` - Path to the output directory where generated files will be saved. Default: `results`.
+- **`groupingMode`** _(optional)_: `'tags' | 'path'` - Strategy for grouping services.
+  - `'tags'`: Groups operations based on their Swagger tags.
+  - `'path'`: Groups operations based on their URL path segments.
+- **`segmentsToIgnore`** _(optional)_: `string[]` - List of URL segments to ignore when generating service names (e.g., `['api', 'v1']`).
+- **`types`** _(optional)_: `object` - Configuration for type generation and inheritance.
+  - **`extendsFrom`** _(optional)_: `InterfaceData[]` - Defines base classes that generated DTOs should extend if they match the properties.
+  - **`generic`** _(optional)_: `InterfaceData[]` - Defines generic types to replace duplicate generated classes (e.g., `PagedResultDto<T>`).
+- **`templates`** _(optional)_: `object` - Configuration for templates used in generation.
+  - **`service`** _(optional)_: `object` - Service template configuration.
+    - **`path`**: `string` - Path to the internal or custom service template file (e.g., `'templates/angular-service.template'`).
+    - **`httpParamsHandler`** _(optional)_: `string` - Custom logic to handle HTTP parameters (e.g., `'const params = HttpHelper.toHttpParams(${params} || {});'`). The `${params}` is a placeholder for the query parameters, it MUST exist in the string.
+    - **`httpParamsHandlerImport`** _(optional)_: `string` - Import statement for the custom parameters handler (e.g., `'import { HttpHelper } from "@shared/utils";'`).
+
+---
+
+#### **Object Structures**
+
+**`InterfaceData`**
+
+Used in `types.extendsFrom` and `types.generic`.
+
+- **`name`**: `string` - The name of the interface or class.
+- **`imports`**: `string[]` - List of imports required for this interface. It has to be the name of other generated interfaces, e.g. `['SomeProperty']`.
+- **`type`**: `'interface' | 'enum' | 'type'` - The kind of TypeScript structure.
+- **`properties`**: `InterfaceDataProperty[]` - Array of properties belonging to this interface.
+- **`extendsFrom`** _(optional)_: `string[]` - Names of other interfaces this one extends. It has to be the name of other generated interfaces, e.g. `['SomeProperty']`.
+
+**`InterfaceDataProperty`**
+
+Used in `InterfaceData.properties`.
+
+- **`name`**: `string` - The name of the property.
+- **`type`**: `string` - The TypeScript type of the property (e.g., `'string'`, `'number'`, `'T[]'`).
+- **`optional`**: `boolean` - Whether the property is optional (`?`).
+- **`comments`**: `string` - JSDoc comments or other annotations for the property. It must be surrounded by the `/** ... */` .
+
+---
 
 #### Example `swaggular.config.json`
 
@@ -95,6 +137,7 @@ You can create a `swaggular.config.json` file in your project root to define adv
   },
   "templates": {
     "service": {
+      "path": "templates/angular-service.template",
       "httpParamsHandlerImport": "import { HttpHelper } from '@shared/utils/http-helper';",
       "httpParamsHandler": "const params = HttpHelper.toHttpParams(${params} || {});"
     }
@@ -106,7 +149,7 @@ This configuration allows you to:
 
 1. **extendsFrom**: Automatically make generated DTOs extend a base class (e.g., `PagedRequestDto`) if they share the same properties.
 2. **generic**: Automatically detect and use generic types (e.g., `PagedResultDto<T>`) instead of generating duplicate classes like `PagedResultDtoOfUser`.
-3. **templates.service.options**: Customize how HTTP parameters are handled in generated services, allowing you to use your own helper functions.
+3. **templates.service**: Customize how HTTP parameters are handled in generated services, allowing you to use your own helper functions.
 
 ## Development
 
