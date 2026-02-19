@@ -4,11 +4,8 @@
   "templates": {
     "service": {
       "path": "templates/angular-service.template",
-      "options": {
-        "hasHttpParamsHandler": true,
-        "httpParamsHandler": "const params = HttpHelper.toHttpParams(${params} || {})",
-        "httpParamsHandlerImport": "import { HttpHelper } from '@umss/shared/utils';"
-      }
+      "httpParamsHandler": "const params = HttpHelper.toHttpParams(${params} || {})",
+      "httpParamsHandlerImport": "import { HttpHelper } from '@umss/shared/utils';"
     }
   },
   "types": {

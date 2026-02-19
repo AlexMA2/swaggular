@@ -1,24 +1,50 @@
-import { ServiceTemplateParams } from './template';
 import { InterfaceData } from './interface-data';
 
 export interface SwaggularConfig {
   types?: {
+    /**
+     * Optional extends from, if not specified, it will not add any extends from to any interface
+     */
     extendsFrom?: InterfaceData[];
+    /**
+     * Optional generic, if not specified, it will not add any generic interface
+     */
     generic?: InterfaceData[];
   };
   templates?: {
+    /**
+     * Optional service template configuration
+     */
     service?: {
-      path: string; // Internal template path, e.g., 'templates/angular-service.template'
-      options?: Partial<ServiceTemplateParams>; // Renamed interface for generic use
-      transform?: (options: ServiceTemplateParams) => string; // Optional custom transformer, unlikely to work via JSON config but kept for internal API
-      content?: string; // Raw template string if not using a transformer function
-      httpParamsHandler?: string; // Custom handler for Query Params
-      httpParamsHandlerImport?: string; // Import statement for the handler
+      /**
+       * Internal template path, e.g., 'templates/angular-service.template'
+       */
+      path: string;
+      /**
+       * Optional custom transformer, in case you have your own transformer function
+       */
+      httpParamsHandler?: string;
+      /**
+       * Optional custom transformer import, if you have your own transformer function,
+       * then specify where does it come from
+       */
+      httpParamsHandlerImport?: string;
     };
   };
-  // other configs like output paths, etc. (Can be merged with CLI args)
+  /**
+   * Optional input path, if not specified, it will use the default input path
+   */
   input?: string;
+  /**
+   * Optional output path, if not specified, it will use the default output path
+   */
   output?: string;
+  /**
+   * Optional grouping mode, if not specified, it will use the default grouping mode
+   */
   groupingMode?: 'tags' | 'path';
+  /**
+   * Optional segments to ignore, if not specified, it will use the default segments to ignore
+   */
   segmentsToIgnore?: string[];
 }

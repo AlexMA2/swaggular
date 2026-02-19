@@ -88,7 +88,7 @@ export function generateServiceFiles(
 
     const methods = service.methods
       .map((method) => {
-        return buildMethodTemplate(method, serviceTemplateConfig?.options?.httpParamsHandler);
+        return buildMethodTemplate(method, serviceTemplateConfig?.httpParamsHandler);
       })
       .join('\n\n');
 
@@ -106,12 +106,10 @@ export function generateServiceFiles(
           ? `import { ${allImports.join(', ')} } from '${'../'.repeat(location.length)}models';`
           : '',
       hasHttpParamsHandler: hasHttpParams,
-      httpParamsHandler: serviceTemplateConfig?.options?.httpParamsHandler,
-      httpParamsHandlerImport: hasHttpParams
-        ? serviceTemplateConfig?.options?.httpParamsHandlerImport
-        : '',
+      httpParamsHandler: serviceTemplateConfig?.httpParamsHandler,
+      httpParamsHandlerImport: hasHttpParams ? serviceTemplateConfig?.httpParamsHandlerImport : '',
       extraAngularImports:
-        hasHttpParams && !serviceTemplateConfig?.options?.httpParamsHandler ? ', HttpParams' : '',
+        hasHttpParams && !serviceTemplateConfig?.httpParamsHandler ? ', HttpParams' : '',
     };
 
     const content = renderServiceTemplate(templatePath, templateParams);
