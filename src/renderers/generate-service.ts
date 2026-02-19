@@ -254,25 +254,6 @@ function buildMethodName(
     }
   }
 
-  const normalizedPath = path.toLowerCase();
-  const suffixes = [
-    { pattern: '/all', label: 'All' },
-    { pattern: '/search', label: 'Search' },
-    { pattern: '/stats', label: 'Stats' },
-    { pattern: '/history', label: 'History' },
-    { pattern: '/summary', label: 'Summary' },
-    { pattern: '/details', label: 'Details' },
-  ];
-
-  for (const suffix of suffixes) {
-    if (normalizedPath.endsWith(suffix.pattern)) {
-      if (!nameParts.join('').endsWith(suffix.label)) {
-        nameParts.push(suffix.label);
-      }
-      break;
-    }
-  }
-
   let candidateName = lowerFirst(nameParts.join(''));
 
   if (candidateName === 'getById' && !usedNames.includes('get')) {
