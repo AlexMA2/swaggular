@@ -39,8 +39,8 @@ npx swaggular --input=swagger.json
 Run the generator by providing the path to your Swagger/OpenAPI file:
 
 ```bash
-swaggular --input=path/to/your/swagger.json```
-
+swaggular --input=path/to/your/swagger.json
+```
 
 ## Configuration
 
